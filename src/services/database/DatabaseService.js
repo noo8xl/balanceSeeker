@@ -9,7 +9,7 @@ class DatabaseService extends DatabaseCore {
 
 	async getWalletList(coinName) {
 
-		let list = `wallet_list.coin_name, wallet_list.address, wallet_list.balance, wallet_list.user_id`;
+		let list = `wallet_list.coin_name, wallet_list.address, wallet_list.balance, wallet_list.customer_id`;
 		let params = `wallet_params.is_used, wallet_params.is_checked`;
 
 		const sql = `

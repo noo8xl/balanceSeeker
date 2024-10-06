@@ -1,5 +1,5 @@
 'use strict';
-const dbConfig = require("../../config");
+const {dbConfig} = require("../../config");
 const mysql = require('mysql2')
 
 class DatabaseCore {
@@ -10,20 +10,25 @@ class DatabaseCore {
 
 	async _selectData(sqlString, valuesArray) {
 
-		try {
-			await this.#initConnection()
+		await this.#initConnection()
 
-			return await this.#db.query(sqlString, valuesArray, async (err, result, fields) => {
-				if(err) console.error('db query error -> ', err);
-				console.log("result -> ", result);
-				return result;
-			})
-		} catch (err) {
-			console.error('got an err -> ', err)
-			// throw await ErrorInterceptor.ServerError(`db selection was failed at <getWalletList> with err\n${e}`)
-		} finally {
-			await this.#closeConnection()
-		}
+		let query =  new Promise((resolve, reject) => {
+			this.#db.query(
+				sqlString,
+				valuesArray,
+				async (err, result, fields) => {
+				if(err) reject()
+				// console.log("result -> ", result);
+				resolve(result)
+			}
+		)
+		})
+
+		query
+			.catch(err => console.error('query error -> ', err))
+			.finally(async () => {await this.#closeConnection()})
+
+		return query;
 	}
 
 	async _updateData(sqlString, valuesArray) {
@@ -32,7 +37,7 @@ class DatabaseCore {
 			this.#db.query(
 				sqlString,
 				valuesArray,
-					(err, result, fields) => {
+				async (err, result, fields) => {
 				if(err) reject()
 				console.log('result => ',result);
 				resolve()
@@ -44,9 +49,11 @@ class DatabaseCore {
 	// initConnection -> init mysql connection
 	async #initConnection() {
 
+		// console.log('dbObj vals is => ', Object.values(dbConfig));
 		this.#db = mysql.createConnection(dbConfig)
 
 		this.#db.connect(async (err) => {
+			if(err) console.log('DATABASE connection error -> ', err)
 			// if (err) throw await ErrorInterceptor.ServerError("wallet database connection was failed.")
 			console.log('mysql database was connected.')
 		})

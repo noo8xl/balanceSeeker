@@ -11,8 +11,7 @@ class Parser extends EventEmitter {
 	currencyName = 'USD'
 	totalFiatAmount = 0
 
-
-	range = 0
+	range
 
 	constructor() {
 		super({captureRejections: true})
@@ -22,16 +21,17 @@ class Parser extends EventEmitter {
 	// getWalletListByParams -> get a list of wallets for parser
 	async getWalletListByParams(coinName) {
 		console.log(`call with __${coinName}__`)
-		// this.#walletList = await this.#databaseService.getWalletList(coinName)
 		this.coinName = coinName;
-		// this.range = this.#walletList.length
-		return []
+
+		this.#walletList = await this.#databaseService.getWalletList(coinName)
+		console.log('this.#walletList.length -> ', this.#walletList.length)
+		this.range = await this.#walletList.length
 	}
 
 	// getCoinsFromWallet -> run through the <this.balances> and call <sendTransaction> here to send the coins from wallet to owner
 	async getCoinsFromWallet(){
-		console.log("balance array length is -> ", this.range);
 		console.log("test this -> ", this.coinName)
+		console.log("balance array length is -> ", this.#walletList.length);
 		//
 		// try	{
 		// 	while (this.#balances.length !== 0) {
@@ -57,12 +57,16 @@ class Parser extends EventEmitter {
 
 const parserEvent = new Parser();
 
+const parserList = []
+
+parserList.push(parserEvent);
+
 const getWalletList = async (coinName) => {
 	await parserEvent.getWalletListByParams(coinName)
 }
 
-const getBalances = async (coinName) => {
-	await parserEvent.getCoinsFromWallet(coinName)
+const getBalances = async () => {
+	await parserEvent.getCoinsFromWallet()
 }
 
 const sendTransaction = async () => {}
@@ -75,7 +79,7 @@ const finishParser = () => {
 }
 
 parserEvent.on("error", (err) => {
-	console.error('got an error -> ', err)
+	console.error('got a worker error -> ', err)
 })
 
 // events list -------------------->
