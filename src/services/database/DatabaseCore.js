@@ -1,4 +1,5 @@
 'use strict';
+const {stdout, stderr} = require('node:process');
 const {dbConfig} = require("../../config");
 const mysql = require('mysql2')
 
@@ -6,7 +7,6 @@ class DatabaseCore {
 	#db;
 
 	constructor() {}
-
 
 	async _selectData(sqlString, valuesArray) {
 
@@ -17,15 +17,16 @@ class DatabaseCore {
 				sqlString,
 				valuesArray,
 				async (err, result, fields) => {
-				if(err) reject()
-				// console.log("result -> ", result);
+				if(err) reject(err)
+				//
+				// console.log('fields => ', fields)
+				// console.log('result => ', result)
 				resolve(result)
-			}
-		)
+			})
 		})
 
 		query
-			.catch(err => console.error('query error -> ', err))
+			.catch(err => stderr.write('query error -> ' + err + '\n'))
 			.finally(async () => {await this.#closeConnection()})
 
 		return query;
@@ -33,35 +34,43 @@ class DatabaseCore {
 
 	async _updateData(sqlString, valuesArray) {
 
-		return new Promise((resolve, reject) => {
+		let pr = new Promise((resolve, reject) => {
 			this.#db.query(
 				sqlString,
 				valuesArray,
 				async (err, result, fields) => {
-				if(err) reject()
-				console.log('result => ',result);
-				resolve()
+				if(err) reject(err)
+				//
+				// console.log('fields => ', fields)
+				// console.log('result => ', result)
+				resolve(result)
 			}
 		)
 		})
+
+		pr
+			.catch(err => stderr.write('query error -> ' + err +'\n'))
+			.finally(async () => {await this.#closeConnection()})
+
 	}
 
 	// initConnection -> init mysql connection
 	async #initConnection() {
 
-		// console.log('dbObj vals is => ', Object.values(dbConfig));
 		this.#db = mysql.createConnection(dbConfig)
-
-		this.#db.connect(async (err) => {
-			if(err) console.log('DATABASE connection error -> ', err)
-			// if (err) throw await ErrorInterceptor.ServerError("wallet database connection was failed.")
-			console.log('mysql database was connected.')
+		this.#db.connect((err) => {
+			if(err) {
+				stderr.write('DATABASE connection error -> ' + err)
+				process.exit(1)
+			}
+			stdout.write('mysql database was connected.\n')
 		})
 
 	}
 
 	async #closeConnection() {
 		return new Promise((resolve, reject) => {
+			stderr.write('db disconnected\n')
 			resolve(this.#db.destroy())
 		})
 	}

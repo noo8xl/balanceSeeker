@@ -1,93 +1,83 @@
 'use strict';
+const {stdout} = require('node:process')
 const EventEmitter  = require('events');
 const DatabaseService = require("../database/DatabaseService");
+
+
+// get a wallet list,
+// set it as an internal class variable,
+// get the balance of the wallet,
+// update wallet params is checked,
+// if balance != 0 -> save it to the redis store by this.coinName key
+// -> remove item from a wallet list
+// else -> remove item and go further
 
 class Parser extends EventEmitter {
 	coinName
 	#walletList
 	#databaseService
+	#cryptoService
+	#cacheService
 
-	totalCryptoAmount = 0
+	foundedCrypto = 0
 	currencyName = 'USD'
-	totalFiatAmount = 0
+	fiatAmount = 0
 
-	range
-
-	constructor() {
+	constructor(coinName) {
 		super({captureRejections: true})
-		this.#databaseService = new DatabaseService();
-	}
-
-	// getWalletListByParams -> get a list of wallets for parser
-	async getWalletListByParams(coinName) {
-		console.log(`call with __${coinName}__`)
 		this.coinName = coinName;
-
-		this.#walletList = await this.#databaseService.getWalletList(coinName)
-		console.log('this.#walletList.length -> ', this.#walletList.length)
-		this.range = await this.#walletList.length
+		this.#databaseService = new DatabaseService();
+		// this.#cryptoService = new CryptoService();
+		// this.#cacheService = new CacheService();
 	}
 
-	// getCoinsFromWallet -> run through the <this.balances> and call <sendTransaction> here to send the coins from wallet to owner
-	async getCoinsFromWallet(){
-		console.log("test this -> ", this.coinName)
-		console.log("balance array length is -> ", this.#walletList.length);
-		//
-		// try	{
-		// 	while (this.#balances.length !== 0) {
-		// 		// await cryptoService.sendTransactionAutomatically({coinName: this.coinName, address: this.balances[0].address})
-		// 		this.#balances.shift()
-		// 		await this.getCoinsFromWallet()
-		// 	}
-		// } catch (err) {
-		// 	console.error('got an err -> ', err)
-		// 	// throw await ErrorInterceptor.ServerError(`
-    //   //   getCoinsFromWallet was failed. The wallet was:
-    //   //   coinName: ${this.balances[0].coinName},
-    //   //   address: ${this.balances[0].address}
-    //   //   `)
-		// }
+	async getWalletListByParams() {
+		this.#walletList = await this.#databaseService.getWalletList(this.coinName)
+		stdout.write('this.#walletList -> ' + this.#walletList.length.toString() + '\n')
+	}
+
+	async getBalance() {
+		if (!this.#walletList) return;
+
+		let balance = 0.2;
+		let list = this.#walletList.length
+
+		// balance seeker loop:
+		for (let i = 0; i < list; i++) {
+			try {
+				// let cacheItem = { coinName: this.coinName, address: list[i].address}
+				// balance = this.#cryptoService.getBalance(list[i].address)
+				if(balance > 0) {
+					// await this.#updateWalletStatus(list[i].id, balance, list[i].is_checked, false)
+					// await this.#cacheService.setWalletItem(cacheItem)
+				}
+
+			} catch (e) {
+				throw new Error(e)
+			}
+		}
+	}
+
+	async getStatsOnFinished(){
+		// create a file
+		// save a stat ?*
+		let msg = `-> parser was finished with:\n` +
+		`coinName: ${this.coinName}\n` +
+		`totalCryptoAmount: ${this.foundedCrypto}\n` +
+		`totalFiatAmount: ${this.fiatAmount} \n` +
+		`currencyName: ${this.currencyName}\n` +
+			'----------------------------------\n'
+
+		stdout.write(msg.toString());
+
+	}
+
+	async #updateWalletStatus(id, balance, isChecked, isUsed){
+		await this.#databaseService.updateWalletStatus(id, isUsed, isChecked)
+
 	}
 
 
 }
 
-
-// event handlers ------------>
-
-const parserEvent = new Parser();
-
-const parserList = []
-
-parserList.push(parserEvent);
-
-const getWalletList = async (coinName) => {
-	await parserEvent.getWalletListByParams(coinName)
-}
-
-const getBalances = async () => {
-	await parserEvent.getCoinsFromWallet()
-}
-
-const sendTransaction = async () => {}
-
-const finishParser = () => {
-	let coins = `${parserEvent.totalCryptoAmount} ${parserEvent.coinName} `;
-	let fiat = `(${parserEvent.totalFiatAmount} ${parserEvent.currencyName})`;
-	console.log(`total payed: ${coins}, ${fiat}`);
-	console.log('parser finished.')
-}
-
-parserEvent.on("error", (err) => {
-	console.error('got a worker error -> ', err)
-})
-
-// events list -------------------->
-
-parserEvent.on("getList", getWalletList)
-parserEvent.on("getBalance", getBalances)
-parserEvent.on("pay", sendTransaction)
-parserEvent.on("finish", finishParser)
-
-
-module.exports = parserEvent;
+module.exports = Parser;
