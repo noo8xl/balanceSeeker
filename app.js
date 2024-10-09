@@ -1,5 +1,5 @@
 'use strict';
-const Bootstrap = require("./src/services/parser/Run");
+const Bootstrap = require("./src/parser/Run");
 
 Bootstrap();
 

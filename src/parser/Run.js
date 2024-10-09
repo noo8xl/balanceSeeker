@@ -4,7 +4,7 @@ const {cpus} = require("node:os");
 const {join} = require("node:path");
 const {stdout, stderr} = require("node:process");
 
-const {coinList} = require('../../config')
+const coinList = require('../config')
 
 function Bootstrap() {
 
@@ -17,32 +17,36 @@ function Bootstrap() {
 
 			cluster.fork()  // -> create a new cluster
 			let worker = cluster.workers[i+1]   // -> get the current cluster by id
+			// console.log('worker -> ', worker.state)
+
 			worker
 				.on('online', () => {
-					let cp = childProcess.fork(workerPath) // -> create a child process in the new cluster
-
+					let child = childProcess.fork(workerPath) // -> create a child process in the new cluster
 					// child process events list
-					cp
-					.on("message", message => {
-						stdout.write('got a message: ' + message + '\n')
-					})
-					.on("error", err => {
-						stderr.write(err.message)
-						process.exit(1)
-					})
-					.on("exit", code => stderr.write('done with code' + code + '\n'))
+					child
+						.on("message", message => {
+							stdout.write('got a message: ' + message + '\n')
+						})
+						.on("error", err => {
+							stderr.write(err.toString())
+							process.exit(1)
+						})
+						.on("exit", code => {
+							stderr.write(`process ${child.pid} done with code ` + code + '\n')
+							child.kill('SIGINT')
+							worker.disconnect()
+						})
 
-					cp.send(coinList[i])
+					child.send(coinList[i])
 				})
 				.on('error', err => {
-					stderr.write(err.message)
+					stderr.write(err.toString())
 					process.exit(1)
 				})
 				.on('exit', code => {
-					stdout.write('done with code' + code + '\n')
+					stdout.write(`cluster with id ${worker.id} done with code ` + code + ' \n')
+					stdout.write('worker state -> ' + worker.state + '\n')
 				})
-
-
 		}
 	} else {
 		// console.log('THE MAIN')
