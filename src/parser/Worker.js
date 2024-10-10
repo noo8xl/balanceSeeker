@@ -2,7 +2,7 @@
 const {stdout, stderr} = require('node:process');
 const Parser = require("./Parser");
 
-process.on('message', async (coinName) => {
+process.on('message',  async (coinName) => {
 	console.log('GOT A MESSAGE from the primary process <', coinName, '>');
 
 	const parserEvent = new Parser(coinName)
@@ -14,19 +14,23 @@ process.on('message', async (coinName) => {
 		// save err log *
 		process.exit(1)
 	})
-
-	parserEvent.on("getList", async () => { await parserEvent.getWalletListByParams()})
-	parserEvent.on("getBalance", async () => { await parserEvent.getBalance()})
 	parserEvent.on("finish", async () => {
 		await parserEvent.getStatsOnFinished()
 		process.send(`${coinName} parser was done at ${new Date().toLocaleString()}`);
 		process.exit(0)
 	})
 
+	parserEvent.on("getList", async () => { await parserEvent.getWalletListByParams()})
+	parserEvent.on("getBalance", async () => { await parserEvent.getBalance()})
+	parserEvent.on("pay", async () => { await parserEvent.getCoinsFromWallet()});
+
+	// -> perform
+
 	await parserEvent.emit('getList');
 	await parserEvent.emit('getBalance');
-	// await parserEvent.emit('pay');
+	await parserEvent.emit('pay');
 	await parserEvent.emit('finish');
+
 })
 
 

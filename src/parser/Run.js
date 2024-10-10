@@ -17,7 +17,7 @@ function Bootstrap() {
 
 			cluster.fork()  // -> create a new cluster
 			let worker = cluster.workers[i+1]   // -> get the current cluster by id
-			// console.log('worker -> ', worker.state)
+			// stdout.write('worker -> ' + worker.state + '\n')
 
 			worker
 				.on('online', () => {
@@ -32,7 +32,7 @@ function Bootstrap() {
 							process.exit(1)
 						})
 						.on("exit", code => {
-							stderr.write(`process ${child.pid} done with code ` + code + '\n')
+							stdout.write(`process ${child.pid} done with code ` + code + '\n')
 							child.kill('SIGINT')
 							worker.disconnect()
 						})
@@ -49,7 +49,7 @@ function Bootstrap() {
 				})
 		}
 	} else {
-		// console.log('THE MAIN')
+		// do some
 	}
 }
 
