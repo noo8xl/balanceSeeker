@@ -4,12 +4,12 @@ const {cpus} = require("node:os");
 const {join} = require("node:path");
 const {stdout, stderr} = require("node:process");
 
-const coinList = require('../config')
+const coinList = require('./config/config')
 
 function Bootstrap() {
 
 	let clusterRange = coinList.length > cpus().length ? cpus().length : coinList.length
-	let workerPath = join(__dirname, `Worker.js`) 	// -> the main worker path
+	let workerPath = join(__dirname, `workers/Worker.js`) 	// -> the main worker path
 
 	if(cluster.isPrimary) {
 

@@ -1,11 +1,11 @@
 'use strict';
 const {stdout, stderr} = require('node:process')
-const EventEmitter  = require('events');
+const EventEmitter  = require('node:vents');
 const DatabaseService = require("../services/database/DatabaseService");
 const child_process = require("node:child_process");
 const path = require("node:path");
 
-class Parser extends EventEmitter {
+class BalanceSeeker {
 	coinName
 	#walletList
 	#listToPay //
@@ -24,7 +24,6 @@ class Parser extends EventEmitter {
 	rate = 55_000
 
 	constructor(coinName) {
-		super({captureRejections: true})
 		this.coinName = coinName;
 		this.#databaseService = new DatabaseService();
 		// this.#cryptoService = new CryptoService();
@@ -40,9 +39,8 @@ class Parser extends EventEmitter {
 		if (!this.#walletList) return;
 
 		// create a child
-		const logWorkerPath = path.join(__dirname, '..', '..', 'log-worker.js');
-		const updateStatusWorkerPath = path.join(__dirname, '..', '..', 'update-status-worker.js');
-		const transactionSenderWorkerPath = path.join(__dirname, '..', '..', 'transaction-sender-worker.js');
+		const logWorkerPath = path.join(__dirname, 'workers/logWorker.js');
+		const updateStatusWorkerPath = path.join(__dirname, 'workers/statusUpdaterWorker.js');
 
 		let list = this.#walletList
 		// balance seeker loop:
@@ -51,7 +49,6 @@ class Parser extends EventEmitter {
 
 			let logWorker = child_process.fork(logWorkerPath)
 			let updateWorker = child_process.fork(updateStatusWorkerPath)
-			let moneySenderWorker = child_process.fork(transactionSenderWorkerPath)
 
 			logWorker
 				.on('message', message => {
@@ -136,7 +133,7 @@ class Parser extends EventEmitter {
 
 		let childList = []
 		let list = this.#listToPay;
-		const workerPath = path.join(__dirname, '..', '..', 'senderWorker.js');
+		const workerPath = path.join(__dirname, 'workers/senderWorker.js');
 
 		while (childList.length !== list.length) {
 			let child = child_process.fork(workerPath)
@@ -166,4 +163,4 @@ class Parser extends EventEmitter {
 
 }
 
-module.exports = Parser;
+module.exports = BalanceSeeker;

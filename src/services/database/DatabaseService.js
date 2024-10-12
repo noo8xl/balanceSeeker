@@ -17,7 +17,7 @@ class DatabaseService {
 		return true
 	}
 
-	#getArrByList(coinName) {
+	async #getArrByList(coinName) {
 		switch (coinName) {
 			case "btc":
 				return btcWallets;
