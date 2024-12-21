@@ -1,5 +1,4 @@
-'use strict';
-const Bootstrap = require("./src/Bootstrap");
+"use strict";
+const Bootstrap = require("./src/Bootstrap.cjs");
 
 Bootstrap();
-
