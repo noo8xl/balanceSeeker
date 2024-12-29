@@ -15,16 +15,15 @@ function Bootstrap() {
   console.log(cluster.isPrimary);
 
   if (cluster.isPrimary) {
-    console.log("clasteryfy");
+    // console.log("clasteryfy");
     for (let i = 0; i < clusterRange; i++) {
       cluster.fork(); // -> create a new cluster
       cluster.on("error", (err) => console.log(err.toString()));
       let worker = cluster.workers[i + 1]; // -> get the current cluster by id
-      stdout.write("worker -> " + worker.state + "\n");
 
       worker
         .on("online", () => {
-          // -> create a child process in the new cluster
+          // -> create a child process inside the new cluster
           let child = childProcess.fork(workerPath);
           // child process events list
           child
@@ -49,6 +48,7 @@ function Bootstrap() {
   } else {
     // do some
     console.log("perform else  ");
+    process.exit(0);
   }
 }
 

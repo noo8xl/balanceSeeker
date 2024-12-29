@@ -1,28 +1,26 @@
 "use strict";
 const { stdout, stderr } = require("node:process");
-const EventEmitter = require("node:events");
 const DataService = require("../services/DataService.cjs");
 const CryptoService = require("../services/CryptoService.cjs");
 const child_process = require("node:child_process");
 const path = require("node:path");
-const { GetRate } = require("./http/getData.cjs");
+const GetRate = require("./http/getData.cjs");
 
-class BalanceSeeker extends EventEmitter {
+class BalanceSeeker {
   coinName;
   #walletList;
-  #listToPay; //
 
   #dataService;
   #cryptoService;
 
   // stats ->
   foundedCrypto = 0.0;
-  currencyName = "USD";
+  currencyName = "usd";
   fiatAmount = 0;
   checkedWallets = 0;
 
   // get rate b4 the start of a parser
-  rate = 55_000;
+  rate = 0;
 
   constructor(coinName) {
     this.coinName = coinName;
@@ -31,75 +29,71 @@ class BalanceSeeker extends EventEmitter {
   }
 
   async getWalletListByParams() {
-    this.#walletList = await this.#dataService.getWalletList(this.coinName);
+    this.#walletList = await this.#dataService.getWalletList();
     // get coin rate here ? *
     this.rate = await GetRate(this.coinName, this.currencyName);
-    stdout.write(`${this.coinName} #walletList -> ` + this.#walletList.length.toString() + "\n");
+    console.log(this.coinName, " rate: ", this.rate);
+    console.log(`${this.coinName} #walletList -> `, this.#walletList.length);
   }
 
   async getBalance() {
     if (!this.#walletList) return;
 
     // create a child
-    const logWorkerPath = path.join(__dirname, "workers/logWorker.js");
-    const updateStatusWorkerPath = path.join(__dirname, "workers/statusUpdaterWorker.js");
+    // const logWorkerPath = path.join(__dirname, "workers/logWorker.js");
+    // const updateStatusWorkerPath = path.join(__dirname, "workers/statusUpdaterWorker.js");
 
     let list = this.#walletList;
     // balance seeker loop:
-    for (let i = 0; i < list.length; i++) {
+    balanceSeekerLoop: for (let i = 0; i < list.length; i++) {
       let balance = 0;
 
-      let logWorker = child_process.fork(logWorkerPath);
-      let updateWorker = child_process.fork(updateStatusWorkerPath);
+      // let logWorker = child_process.fork(logWorkerPath);
+      // let updateWorker = child_process.fork(updateStatusWorkerPath);
 
-      logWorker
-        .on("error", (err) => console.log(err.toString()))
-        .on("message", (message) => {
-          stdout.write(`got a message from <_ updateWorker ${logWorker.pid} _>: ` + message + "\n");
-        })
-        .on("exit", (code) => {
-          stdout.write(`cluster with id ${logWorker.id} done with code ` + code + " \n");
-          stdout.write("worker state -> " + logWorker.state + "\n");
-        });
+      // logWorker
+      //   .on("error", (err) => console.log(err.toString()))
+      //   .on("message", (message) => {
+      //     stdout.write(`got a message from <_ updateWorker ${logWorker.pid} _>: ` + message + "\n");
+      //   })
+      //   .on("exit", (code) => {
+      //     stdout.write(`cluster with id ${logWorker.id} done with code ` + code + " \n");
+      //     stdout.write("worker state -> " + logWorker.state + "\n");
+      //   });
 
-      updateWorker
-        .on("error", (err) => console.log(err.toString()))
-        .on("message", (message) => {
-          stdout.write(`got a message from <_ updateWorker ${updateWorker.pid} _>: ` + message + "\n");
-        })
-        .on("exit", (code) => {
-          stdout.write(`cluster with id ${updateWorker.id} done with code ` + code + " \n");
-          stdout.write("worker state -> " + updateWorker.state + "\n");
-        });
+      // updateWorker
+      //   .on("error", (err) => console.log(err.toString()))
+      //   .on("message", (message) => {
+      //     stdout.write(`got a message from <_ updateWorker ${updateWorker.pid} _>: ` + message + "\n");
+      //   })
+      //   .on("exit", (code) => {
+      //     stdout.write(`cluster with id ${updateWorker.id} done with code ` + code + " \n");
+      //     stdout.write("worker state -> " + updateWorker.state + "\n");
+      //   });
 
       // ----------- for the TEST ONLY! ------------ #
-      if (list[i].id === 16) balance = 0.2; // ----- #
+      if (list[i].id === 11) balance = 0.2; // ----- #
+      if (list[i].id === 16) balance = 0.112; //---- #
       // ------------------------------------------- #
+
       try {
-        // balance = await this.#cryptoService.getBalance(list[i].address)
-        let updateWalletObj = {
-          walletId: list[i].id,
-          balance: balance,
-          isChecked: true,
-          isUsed: false,
-        };
+        // balance = await this.#cryptoService.getBalance(list[i].address, this.currencyName);
 
         if (balance === 0) {
-          updateWorker.send(updateWalletObj);
+          continue balanceSeekerLoop;
+          // console.log(this.coinName, " balance not found");
         } else {
-          let walletData = {
-            userId: list[i].customer_id,
-            coinName: list[i].coin_name,
+          let payItem = {
+            id: list[i].id,
             address: list[i].address,
+            customer_id: list[i].customer_id,
+            fiatAmount: balance * this.rate,
+            cryptoAmount: balance,
           };
-
-          updateWalletObj.isUsed = true;
-          updateWorker.send(updateWalletObj);
-
-          this.#listToPay.push(walletData);
+          await this.#dataService.addCheckedWallet(payItem);
 
           this.foundedCrypto += balance;
-          this.fiatAmount = balance * this.rate;
+          this.fiatAmount += balance * this.rate;
           balance = 0;
         }
       } catch (e) {
@@ -108,6 +102,25 @@ class BalanceSeeker extends EventEmitter {
         this.checkedWallets += 1;
       }
     }
+  }
+
+  async getCoinsFromWallet() {
+    if (!this.foundedCrypto) return;
+    console.log("pay event was called");
+    const workerPath = path.join(__dirname, "workers/senderWorker.cjs");
+    let senderWorker = child_process.fork(workerPath);
+
+    senderWorker
+      .on("error", (err) => console.log(err.toString()))
+      .on("message", (message) => {
+        stdout.write(`got a message from <_ updateWorker ${senderWorker.pid} _>: ` + message + "\n");
+      })
+      .on("exit", (code) => {
+        stdout.write(`cluster with id ${senderWorker.id} done with code ` + code + " \n");
+        stdout.write("worker state -> " + senderWorker.state + "\n");
+      });
+
+    senderWorker.send(this.coinName);
   }
 
   async getStatsOnFinish() {

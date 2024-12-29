@@ -1,6 +1,7 @@
 const coinList = ["btc", "eth", "trx", "ton"]; // , 'sol'
+//const coinList = ["btc"];
 
-const addressToSend = [
+const receiverAddressList = [
   { coinName: "btc", address: "address1" },
   { coinName: "eth", address: "address2" },
   { coinName: "trx", address: "address3" },
@@ -17,5 +18,5 @@ const availableCoins = [
 module.exports = {
   coinList,
   availableCoins,
-  addressToSend,
+  receiverAddressList,
 };

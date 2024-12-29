@@ -86,3 +86,6 @@ typings/
 
 # DynamoDB Local files
 .dynamodb/
+
+# Parser result folder with a list of non-zero balance wallets
+src/resources/non-zero-wallets
